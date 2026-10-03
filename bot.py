@@ -66,11 +66,11 @@ def balance(uid):
     return int(earned), int(paid), int(earned-paid)
 
 def money(n): return f"{int(n):,}".replace(",", " ") + " so‘m"
-
-def menu(uid):
+mcdef menu(uid):
+rows += [["📊 HAMMA ISHCHILAR HISOBI"],["⚙️ Ishlar va narxlar"],["🗑 Hisobni o‘chirish"]]
     rows=[["➕ Ish qo‘shish","💵 Pul oldim"],["💰 Qoldiq","📋 Tarixim"]]
     if is_admin(uid):
-        rows += [["📊 HAMMA ISHCHILAR HISOBI"],["⚙️ Ishlar va narxlar"]]
+       
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -221,6 +221,51 @@ async def delete_choose(update, context):
     await q.message.reply_text(f"🗑 {w['name']} o‘chirildi.", reply_markup=menu(q.from_user.id))
     return ConversationHandler.END
 
+async def delete_account_menu(update, context):
+    if not is_admin(update.effective_user.id):
+        return
+
+    con = db()
+    rows = con.execute("""
+        SELECT e.id, e.qty, e.total, e.created_at, w.name, u.name AS worker
+        FROM entries e
+        JOIN works w ON w.id = e.work_id
+        LEFT JOIN users u ON u.tg_id = e.tg_id
+        ORDER BY e.id DESC LIMIT 30
+    """).fetchall()
+    con.close()
+
+    if not rows:
+        await update.message.reply_text("O‘chirish uchun hisob yo‘q.")
+        return
+
+    kb = [
+        [InlineKeyboardButton(
+            f"{r['worker']} | {r['name']} | {r['qty']:g} ta | {money(r['total'])}",
+            callback_data=f"delentry:{r['id']}"
+        )]
+        for r in rows
+    ]
+
+    await update.message.reply_text(
+        "🗑 O‘chirmoqchi bo‘lgan hisobni tanlang:",
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
+
+async def delete_account(update, context):
+    q = update.callback_query
+    await q.answer()
+
+    if not is_admin(q.from_user.id):
+        return
+
+    entry_id = int(q.data.split(":")[1])
+    con = db()
+    con.execute("DELETE FROM entries WHERE id=?", (entry_id,))
+    con.commit()
+    con.close()
+
+    await q.edit_message_text("✅ Hisob o‘chirildi.")
 async def cancel(update, context):
     await update.message.reply_text("Bekor qilindi.", reply_markup=menu(update.effective_user.id))
     return ConversationHandler.END
@@ -259,6 +304,8 @@ def main():
     app.add_handler(MessageHandler(filters.Regex("^📋 Tarixim$"), history))
     app.add_handler(MessageHandler(filters.Regex("^📊 HAMMA ISHCHILAR HISOBI$"), all_workers))
     app.add_handler(MessageHandler(filters.Regex("^⚙️ Ishlar va narxlar$"), settings))
+    app.add_handler(MessageHandler(filters.Regex("^🗑 Hisobni o‘chirish$"), delete_account_menu))
+    app.add_handler(CallbackQueryHandler(delete_account, pattern=r"^delentry:\d+$"))
     print("Bot ishlayapti...")
     app.run_polling()
 
