@@ -66,12 +66,12 @@ def balance(uid):
     return int(earned), int(paid), int(earned-paid)
 
 def money(n): return f"{int(n):,}".replace(",", " ") + " so‘m"
-mcdef menu(uid):
-rows += [["📊 HAMMA ISHCHILAR HISOBI"],["⚙️ Ishlar va narxlar"],["🗑 Hisobni o‘chirish"]]
-    rows=[["➕ Ish qo‘shish","💵 Pul oldim"],["💰 Qoldiq","📋 Tarixim"]]
+def menu(uid):
+    rows = [["➕ Ish qo‘shish", "💵 Pul oldim"], ["💰 Qoldiq", "📋 Tarixim"]]
     if is_admin(uid):
-       
+        rows += [["📊 HAMMA ISHCHILAR HISOBI"], ["⚙️ Ishlar va narxlar"], ["🗑 Hisobni o‘chirish"]]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
+       
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid=update.effective_user.id
